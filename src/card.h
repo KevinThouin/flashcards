@@ -2,10 +2,10 @@
 #define CARD_H
 
 #include <chrono>
+#include <set>
 #include <string>
 #include <string_view>
 #include <list>
-#include <map>
 #include <optional>
 #include <unordered_set>
 
@@ -51,8 +51,16 @@ public:
 };
 
 class CardsDueDates {
+  struct SetCompare {
+    using Type = std::pair<std::chrono::year_month_day, CardReference>;
+    bool operator()(const Type& a, const Type& b) const {
+      auto firstCompare = a.first <=> b.first;
+      return (firstCompare == 0) ? a.second.get().title() < b.second.get().title() : firstCompare < 0;
+    }
+  };
+
   std::list<CardReference> mDueCards;
-  std::multimap<std::chrono::year_month_day, CardReference> mOtherCards;
+  std::multiset<std::pair<std::chrono::year_month_day, CardReference>, SetCompare> mOtherCards;
   std::chrono::year_month_day mToday;
 
 public:
