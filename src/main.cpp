@@ -15,13 +15,17 @@
 #include <string_view>
 #include <unordered_set>
 
-void addNewCards(CardsDueDates& cardsDueDates, const Cards& cards) {
+void addNewCardsAndCheckDuplicatesInDueDates(CardsDueDates& cardsDueDates, const Cards& cards) {
   std::unordered_set<std::string_view> presentCards;
   for (const auto& card : cardsDueDates.getDueCards()) {
-    presentCards.insert(card.get().title());
+    if (!presentCards.insert(card.get().title()).second) {
+      throw std::runtime_error(std::format("Card `{}` is already present", card.get().title()));
+    }
   }
   for (const auto& [_, card] : cardsDueDates.getOtherCards()) {
-    presentCards.insert(card.get().title());
+    if (!presentCards.insert(card.get().title()).second) {
+      throw std::runtime_error(std::format("Card `{}` is already present", card.get().title()));
+    }
   }
 
   for (const auto& card : cards) {
@@ -34,7 +38,7 @@ void addNewCards(CardsDueDates& cardsDueDates, const Cards& cards) {
 auto readCardsData(const char* cardsPath, const char* cardsDueDatesPath) {
   Cards cards = readCards(cardsPath);
   CardsDueDates cardsDueDates = readCardsDueDates(cardsDueDatesPath, cards);
-  addNewCards(cardsDueDates, cards);
+  addNewCardsAndCheckDuplicatesInDueDates(cardsDueDates, cards);
   cardsDueDates.shuffleDueCards();
   return std::make_pair(std::move(cards), std::move(cardsDueDates));
 }
