@@ -84,10 +84,10 @@ public:
 };
 
 class ReaderBase {
-  const char* mError = nullptr;
+  std::string mError;
 
 protected:
-  void setError(const char* error) {mError = error;}
+  void setError(std::string&& error) {mError = std::move(error);}
 
 public:
   void checkResult(const rapidjson::ParseResult& result, const File& file) {
@@ -96,11 +96,11 @@ public:
     }
     if (result.Code() != rapidjson::kParseErrorNone) {
       const char* errMsg;
-      if (result.Code() != rapidjson::kParseErrorTermination || mError == nullptr)
+      if (result.Code() != rapidjson::kParseErrorTermination || mError.empty())
       {
         errMsg = rapidjson::GetParseError_En(result.Code());
       } else {
-        errMsg = mError;
+        errMsg = mError.c_str();
       }
       throw std::runtime_error(std::format("Error parsing json at offset {} ({})!", result.Offset(), errMsg));
     }
@@ -194,7 +194,7 @@ struct CardsReader : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, Card
       mIsParsingCard = false;
       bool success = mCards.registerCard(Card{std::move(mTitle), std::move(mFirstSide), std::move(secondSide)});
       if (!success) {
-        setError("Card already present");
+        setError(std::format("Card `{}` already present", mTitle, std::string_view{str, lenght}));
       }
       return success;
     }
