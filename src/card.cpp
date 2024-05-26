@@ -18,19 +18,19 @@ CardsDueDates::CardsDueDates() {
   mToday = std::chrono::year_month_day{std::chrono::time_point_cast<std::chrono::days>(now)};
 }
 
-void CardsDueDates::addDueCard(CardReference card) {
-  mDueCards.push_back(card);
+void CardsDueDates::addDueCard(CardReference card, int numberOfDaysSinceLastTime) {
+  mDueCards.push_back({card, numberOfDaysSinceLastTime});
 }
 
-void CardsDueDates::addCard(CardReference card, const std::chrono::year_month_day& dueDate) {
+void CardsDueDates::addCard(CardReference card, const std::chrono::year_month_day& dueDate, int numberOfDaysSinceLastTime) {
   if (dueDate <= mToday) {
-    mDueCards.push_back(card);
+    mDueCards.push_back({card, numberOfDaysSinceLastTime});
   } else {
-    mOtherCards.insert({dueDate, card});
+    mOtherCards.insert({dueDate, card, numberOfDaysSinceLastTime});
   }
 }
 
-std::optional<std::list<CardReference>::const_iterator> CardsDueDates::pickNewCard() const {
+std::optional<std::list<std::pair<CardReference, int>>::iterator> CardsDueDates::pickNewCard() {
   if (!mDueCards.empty()) {
     return std::make_optional(mDueCards.begin());
   } else {
@@ -38,12 +38,13 @@ std::optional<std::list<CardReference>::const_iterator> CardsDueDates::pickNewCa
   }
 }
 
-void CardsDueDates::putbackCard(std::list<CardReference>::const_iterator it, int nextDueDays) {
+void CardsDueDates::putbackCard(std::list<std::pair<CardReference, int>>::iterator it, int nextDueDays) {
   if (nextDueDays <= 0) {
+    it->second = 0;
     mDueCards.splice(mDueCards.cend(), mDueCards, it);
   } else {
     std::chrono::year_month_day dueDate = static_cast<std::chrono::sys_days>(mToday) + std::chrono::days(nextDueDays);
-    mOtherCards.insert({dueDate, *it});
+    mOtherCards.insert({dueDate, it->first, nextDueDays});
     mDueCards.erase(it);
   }
 }

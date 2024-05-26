@@ -17,12 +17,12 @@
 
 void addNewCardsAndCheckDuplicatesInDueDates(CardsDueDates& cardsDueDates, const Cards& cards) {
   std::unordered_set<std::string_view> presentCards;
-  for (const auto& card : cardsDueDates.getDueCards()) {
+  for (const auto& [card, _] : cardsDueDates.getDueCards()) {
     if (!presentCards.insert(card.get().title()).second) {
       throw std::runtime_error(std::format("Card `{}` is already present", card.get().title()));
     }
   }
-  for (const auto& [_, card] : cardsDueDates.getOtherCards()) {
+  for (const auto& [_0, card, _1] : cardsDueDates.getOtherCards()) {
     if (!presentCards.insert(card.get().title()).second) {
       throw std::runtime_error(std::format("Card `{}` is already present", card.get().title()));
     }
@@ -30,7 +30,7 @@ void addNewCardsAndCheckDuplicatesInDueDates(CardsDueDates& cardsDueDates, const
 
   for (const auto& card : cards) {
     if (!presentCards.contains(card.title())) {
-      cardsDueDates.addDueCard(card);
+      cardsDueDates.addDueCard(card, -1);
     }
   }
 }
@@ -78,9 +78,14 @@ int getNumberOfDaysToReshowCard() {
   return ret;
 }
 
-int showCard(const Card& card) {
+int showCard(const Card& card, int numberOfDaysSinceLastTime) {
   std::cout << "\033[2J\033[1;1H"; // Clear screen
   std::cout << card.firstSide() << std::endl;
+  if (numberOfDaysSinceLastTime > 0) {
+    std::cout << "(Montrée la dernière fois il y a " << numberOfDaysSinceLastTime << " jours)" << std::endl;
+  } else if (numberOfDaysSinceLastTime == 0) {
+    std::cout << "(Montrée la dernière fois aujourd'hui)" << std::endl;
+  }
   waitForNewline();
   std::cout << card.secondSide() << "\n\n";
   return getNumberOfDaysToReshowCard();
@@ -124,7 +129,7 @@ void pickAndShowCard(CardsDueDates& cardsDueDates) {
     return;
   }
 
-  int nextDueTime = showCard((**card).get());
+  int nextDueTime = showCard((**card).first.get(), (**card).second);
   cardsDueDates.putbackCard(*card, nextDueTime);
 }
 

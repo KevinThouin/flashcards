@@ -111,7 +111,10 @@ class CardsDueDatesReader : public rapidjson::BaseReaderHandler<rapidjson::UTF8<
   CardsDueDates& mCardsDueDates;
   const Cards& mCards;
   std::string mTitle;
+  std::optional<std::chrono::year_month_day> mYmd;
+  int mNumberOfDaysSinceLastTime = -1;
   bool mIsDocumentObject = false;
+  bool mIsArray = false;
 
 public:
   CardsDueDatesReader(CardsDueDates& cardsDueDates, const Cards& cards)
@@ -122,22 +125,51 @@ public:
     return false;
   }
 
+  bool StartArray() {
+    if (!mIsDocumentObject || mIsArray) {
+      setError("Unexpected element type");
+      return false;
+    }
+    mIsArray = true;
+    return true;
+  }
+
+  bool EndArray(rapidjson::SizeType length) {
+    if (length != 2) {
+      setError("Array must have 2 elements");
+    }
+    if (!mYmd.has_value() || mNumberOfDaysSinceLastTime < 0) {
+      setError("Title or number of days since last time not set!");
+    }
+    mIsArray = false;
+    return addCard();
+  }
+
+  bool Uint(unsigned u) {
+    if (!mIsDocumentObject || !mIsArray || !mYmd.has_value() || mNumberOfDaysSinceLastTime >= 0) {
+      setError("Unexpected element type");
+      return false;
+    }
+    if (u > (unsigned int)std::numeric_limits<int>::max()) {
+      setError("Integer too large");
+      return false;
+    }
+    mNumberOfDaysSinceLastTime = static_cast<int>(u);
+    return true;
+  }
+
   bool String(const char* str, rapidjson::SizeType lenght, [[maybe_unused]] bool copy) {
     if (!mIsDocumentObject) {
       setError("Unexpected element type");
       return false;
     }
-    auto ymd = stringToYmd(str, lenght);
-    if (!ymd.has_value()) {
+    mYmd = stringToYmd(str, lenght);
+    if (!mYmd.has_value()) {
       setError("Invalid date");
       return false;
     }
-    const Card* card = mCards.getCard(mTitle);
-    mTitle.clear();
-    if (card == nullptr) {
-      std::cout << "Card `" << str << "` is not present!" << std::endl;
-    } else {
-      mCardsDueDates.addCard(*card, *ymd);
+    if (!mIsArray) {
+      return addCard();
     }
     return true;
   }
@@ -161,6 +193,18 @@ public:
   }
 
   bool EndObject([[maybe_unused]] rapidjson::SizeType memCount) {return true;}
+
+  bool addCard() {
+    const Card* card = mCards.getCard(mTitle);
+    if (card == nullptr) {
+      std::cout << "Card `" << mTitle << "` is not present!" << std::endl;
+    } else {
+      mCardsDueDates.addCard(*card, *mYmd, mNumberOfDaysSinceLastTime);
+    }
+    mTitle.clear();
+    mNumberOfDaysSinceLastTime = -1;
+    return true;
+  }
 };
 
 struct CardsReader : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, CardsDueDatesReader>, public ReaderBase {
@@ -243,13 +287,27 @@ void writeCardsDueDates(const CardsDueDates& cardsDueDates, Writer& writer) {
   std::string today = ymdToString(cardsDueDates.getToday());
 
   writer.StartObject();
-  for (CardReference card : cardsDueDates.getDueCards()) {
+  for (auto [card, numberOfDaysSinceLastTime] : cardsDueDates.getDueCards()) {
     writer.Key(card.get().title().c_str());
-    writer.String(today.c_str());
+    if (numberOfDaysSinceLastTime < 0) {
+      writer.String(today.c_str());
+    } else {
+      writer.StartArray();
+      writer.String(today.c_str());
+      writer.Uint(static_cast<unsigned int>(numberOfDaysSinceLastTime));
+      writer.EndArray();
+    }
   }
-  for (const auto& [dueDate, card] : cardsDueDates.getOtherCards()) {
+  for (const auto& [dueDate, card, numberOfDaysSinceLastTime] : cardsDueDates.getOtherCards()) {
     writer.Key(card.get().title().c_str());
-    writer.String(ymdToString(dueDate).c_str());
+    if (numberOfDaysSinceLastTime < 0) {
+      writer.String(ymdToString(dueDate).c_str());
+    } else {
+      writer.StartArray();
+      writer.String(ymdToString(dueDate).c_str());
+      writer.Uint(static_cast<unsigned int>(numberOfDaysSinceLastTime));
+      writer.EndArray();
+    }
   }
   writer.EndObject();
 }

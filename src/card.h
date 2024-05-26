@@ -8,6 +8,7 @@
 #include <list>
 #include <optional>
 #include <unordered_set>
+#include <tuple>
 
 class Card {
   std::string mTitle;
@@ -51,16 +52,17 @@ public:
 };
 
 class CardsDueDates {
+  using Type = std::tuple<std::chrono::year_month_day, CardReference, int>;
+
   struct SetCompare {
-    using Type = std::pair<std::chrono::year_month_day, CardReference>;
     bool operator()(const Type& a, const Type& b) const {
-      auto firstCompare = a.first <=> b.first;
-      return (firstCompare == 0) ? a.second.get().title() < b.second.get().title() : firstCompare < 0;
+      auto firstCompare = std::get<0>(a) <=> std::get<0>(b);
+      return (firstCompare == 0) ? std::get<1>(a).get().title() < std::get<1>(b).get().title() : firstCompare < 0;
     }
   };
 
-  std::list<CardReference> mDueCards;
-  std::multiset<std::pair<std::chrono::year_month_day, CardReference>, SetCompare> mOtherCards;
+  std::list<std::pair<CardReference, int>> mDueCards;
+  std::multiset<Type, SetCompare> mOtherCards;
   std::chrono::year_month_day mToday;
 
 public:
@@ -70,10 +72,10 @@ public:
   const auto& getOtherCards() const {return mOtherCards;}
   const auto& getToday() const {return mToday;}
 
-  void addDueCard(CardReference card);
-  void addCard(CardReference card, const std::chrono::year_month_day& dueDate);
-  std::optional<std::list<CardReference>::const_iterator> pickNewCard() const;
-  void putbackCard(std::list<CardReference>::const_iterator it, int nextDueDays);
+  void addDueCard(CardReference card, int numberOfDaysSinceLastTime);
+  void addCard(CardReference card, const std::chrono::year_month_day& dueDate, int numberOfDaysSinceLastTime = 0);
+  std::optional<std::list<std::pair<CardReference, int>>::iterator> pickNewCard();
+  void putbackCard(std::list<std::pair<CardReference, int>>::iterator it, int nextDueDays);
   void shuffleDueCards();
 };
 
