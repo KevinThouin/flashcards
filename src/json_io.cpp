@@ -236,9 +236,9 @@ struct CardsReader : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, Card
     } else {
       std::string secondSide{str, lenght};
       mIsParsingCard = false;
-      bool success = mCards.registerCard(Card{std::move(mTitle), std::move(mFirstSide), std::move(secondSide)});
+      bool success = mCards.registerCard(Card{mTitle, std::move(mFirstSide), std::move(secondSide)});
       if (!success) {
-        setError(std::format("Card `{}` already present", mTitle, std::string_view{str, lenght}));
+        setError(std::format("Card `{}` already present", mTitle));
       }
       return success;
     }
@@ -282,34 +282,33 @@ struct CardsReader : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, Card
   }
 };
 
-template<typename Writer>
-void writeCardsDueDates(const CardsDueDates& cardsDueDates, Writer& writer) {
-  std::string today = ymdToString(cardsDueDates.getToday());
+void writeCardsDueDates(const CardsDueDates& cardsDueDates, FILE* file) {
+  std::string dueDateStr = ymdToString(cardsDueDates.getToday());
 
-  writer.StartObject();
+  fputc('{', file);
+  bool isNotFirstChar = false;
   for (auto [card, numberOfDaysSinceLastTime] : cardsDueDates.getDueCards()) {
-    writer.Key(card.get().title().c_str());
+    if (isNotFirstChar) fputc(',', file);
+    fputc('\n', file);
     if (numberOfDaysSinceLastTime < 0) {
-      writer.String(today.c_str());
+      fprintf(file, "\"%s\": \"%s\"", card.get().title().c_str(), dueDateStr.c_str());
     } else {
-      writer.StartArray();
-      writer.String(today.c_str());
-      writer.Uint(static_cast<unsigned int>(numberOfDaysSinceLastTime));
-      writer.EndArray();
+      fprintf(file, "\"%s\": [\"%s\", %i]", card.get().title().c_str(), dueDateStr.c_str(), numberOfDaysSinceLastTime);
     }
+    isNotFirstChar = true;
   }
   for (const auto& [dueDate, card, numberOfDaysSinceLastTime] : cardsDueDates.getOtherCards()) {
-    writer.Key(card.get().title().c_str());
+    if (isNotFirstChar) fputc(',', file);
+    fputc('\n', file);
+    dueDateStr = ymdToString(dueDate);
     if (numberOfDaysSinceLastTime < 0) {
-      writer.String(ymdToString(dueDate).c_str());
+      fprintf(file, "\"%s\": \"%s\"", card.get().title().c_str(), dueDateStr.c_str());
     } else {
-      writer.StartArray();
-      writer.String(ymdToString(dueDate).c_str());
-      writer.Uint(static_cast<unsigned int>(numberOfDaysSinceLastTime));
-      writer.EndArray();
+      fprintf(file, "\"%s\": [\"%s\", %i]", card.get().title().c_str(), dueDateStr.c_str(), numberOfDaysSinceLastTime);
     }
+    isNotFirstChar = true;
   }
-  writer.EndObject();
+  fputs("\n}", file);
 }
 
 Cards readCards(const char* cardsPath) {
@@ -347,11 +346,7 @@ CardsDueDates readCardsDueDates(const char* cardsDueDatesPath, const Cards& card
 
 void writeCardsDueDate(const char* cardsDueDatesPath, const CardsDueDates& cardsDueDates) {
   File fp{cardsDueDatesPath, "w"};
-  char writeBuffer[65536];
-  rapidjson::FileWriteStream os{fp.getHandle(), writeBuffer, sizeof(writeBuffer)};
-  rapidjson::PrettyWriter writer{os};
-  writer.SetIndent(' ', 0);
-  writeCardsDueDates(cardsDueDates, writer);
+  writeCardsDueDates(cardsDueDates, fp.getHandle());
   fp.close();
 }
 

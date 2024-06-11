@@ -16,8 +16,8 @@ class Card {
   std::string mSecondSide;
 
 public:
-  Card(std::string&& title, std::string&& firstSide, std::string&& secondSide)
-    : mTitle(std::move(title)), mFirstSide(std::move(firstSide)), mSecondSide(std::move(secondSide)) {}
+  Card(const std::string& title, std::string&& firstSide, std::string&& secondSide)
+    : mTitle(title), mFirstSide(std::move(firstSide)), mSecondSide(std::move(secondSide)) {}
 
   const std::string& title() const {return mTitle;}
   const std::string& firstSide() const {return mFirstSide;}
