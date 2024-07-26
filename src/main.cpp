@@ -1,5 +1,6 @@
 #include "card.h"
 #include "json_io.h"
+#include "due_dates_statistics.h"
 
 #include <cstring>
 #include <cstdlib>
@@ -38,7 +39,9 @@ void addNewCardsAndCheckDuplicatesInDueDates(CardsDueDates& cardsDueDates, const
 
 auto readCardsData(const char* cardsPath, const char* cardsDueDatesPath, unsigned int maxNewCardCount) {
   Cards cards = readCards(cardsPath);
-  CardsDueDates cardsDueDates = readCardsDueDates(cardsDueDatesPath, cards);
+  DueDatesStatistics dueDatesStatistics;
+  CardsDueDates cardsDueDates = readCardsDueDates(cardsDueDatesPath, cards, dueDatesStatistics);
+  dueDatesStatistics.print(std::cout);
   addNewCardsAndCheckDuplicatesInDueDates(cardsDueDates, cards, maxNewCardCount);
   cardsDueDates.shuffleDueCards();
   return std::make_pair(std::move(cards), std::move(cardsDueDates));

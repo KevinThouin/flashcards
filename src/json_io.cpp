@@ -110,6 +110,8 @@ public:
 class CardsDueDatesReader : public rapidjson::BaseReaderHandler<rapidjson::UTF8<>, CardsDueDatesReader>, public ReaderBase {
   CardsDueDates& mCardsDueDates;
   const Cards& mCards;
+  DueDatesStatistics& mDueDatesStatistics;
+  std::chrono::sys_days mToday;
   std::string mTitle;
   std::optional<std::chrono::year_month_day> mYmd;
   int mNumberOfDaysSinceLastTime = -1;
@@ -117,8 +119,8 @@ class CardsDueDatesReader : public rapidjson::BaseReaderHandler<rapidjson::UTF8<
   bool mIsArray = false;
 
 public:
-  CardsDueDatesReader(CardsDueDates& cardsDueDates, const Cards& cards)
-    : mCardsDueDates(cardsDueDates), mCards(cards) {}
+  CardsDueDatesReader(CardsDueDates& cardsDueDates, const Cards& cards, DueDatesStatistics& dueDatesStatistics)
+    : mCardsDueDates(cardsDueDates), mCards(cards), mDueDatesStatistics(dueDatesStatistics), mToday(mCardsDueDates.getToday()) {}
 
   bool Default() {
     setError("Unexpected element type");
@@ -199,7 +201,9 @@ public:
     if (card == nullptr) {
       std::cout << "Card `" << mTitle << "` is not present!" << std::endl;
     } else {
+      using namespace std::chrono;
       mCardsDueDates.addCard(*card, *mYmd, mNumberOfDaysSinceLastTime);
+      mDueDatesStatistics.addCard((int)(sys_days(*mYmd) - mToday).count());
     }
     mTitle.clear();
     mNumberOfDaysSinceLastTime = -1;
@@ -325,7 +329,7 @@ Cards readCards(const char* cardsPath) {
   return cards;
 }
 
-CardsDueDates readCardsDueDates(const char* cardsDueDatesPath, const Cards& cards) {
+CardsDueDates readCardsDueDates(const char* cardsDueDatesPath, const Cards& cards, DueDatesStatistics& dueDatesStatistics) {
   CardsDueDates cardsDueDates;
   try {
     File fp{cardsDueDatesPath, "r"};
@@ -333,7 +337,7 @@ CardsDueDates readCardsDueDates(const char* cardsDueDatesPath, const Cards& card
     char readBuffer[65536];
     rapidjson::FileReadStream is{fp.getHandle(), readBuffer, sizeof(readBuffer)};
 
-    CardsDueDatesReader handler{cardsDueDates, cards};
+    CardsDueDatesReader handler{cardsDueDates, cards, dueDatesStatistics};
     rapidjson::Reader reader;
     handler.checkResult(reader.Parse(is, handler), fp);
     fp.close();
