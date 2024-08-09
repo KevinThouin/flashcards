@@ -194,8 +194,10 @@ int main(int argc, char** argv) {
       }
     }
   
-    std::cout << "Updating cards due date..." << std::endl;
-    writeCardsDueDate(args.cardsDueDatesPath.c_str(), cardsDueDates);
+    if (cardsDueDates.isDirty()) {
+      std::cout << "Updating cards due date..." << std::endl;
+      writeCardsDueDate(args.cardsDueDatesPath.c_str(), cardsDueDates);
+    }
   } catch (const std::exception& e) {
     std::cout << e.what() << std::endl;
   }

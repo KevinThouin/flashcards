@@ -64,6 +64,7 @@ class CardsDueDates {
   std::list<std::pair<CardReference, int>> mDueCards;
   std::multiset<Type, SetCompare> mOtherCards;
   std::chrono::year_month_day mToday;
+  bool mDirty = false;
 
 public:
   CardsDueDates();
@@ -71,6 +72,7 @@ public:
   const auto& getDueCards() const {return mDueCards;}
   const auto& getOtherCards() const {return mOtherCards;}
   const auto& getToday() const {return mToday;}
+  bool isDirty() const {return mDirty;}
 
   void addDueCard(CardReference card, int numberOfDaysSinceLastTime);
   void addCard(CardReference card, const std::chrono::year_month_day& dueDate, int numberOfDaysSinceLastTime = 0);

@@ -20,11 +20,13 @@ CardsDueDates::CardsDueDates() {
 
 void CardsDueDates::addDueCard(CardReference card, int numberOfDaysSinceLastTime) {
   mDueCards.push_back({card, numberOfDaysSinceLastTime});
+  mDirty = true;
 }
 
 void CardsDueDates::addCard(CardReference card, const std::chrono::year_month_day& dueDate, int numberOfDaysSinceLastTime) {
   if (dueDate <= mToday) {
     mDueCards.push_back({card, numberOfDaysSinceLastTime});
+    mDirty |= (dueDate < mToday);
   } else {
     mOtherCards.insert({dueDate, card, numberOfDaysSinceLastTime});
   }
@@ -46,6 +48,7 @@ void CardsDueDates::putbackCard(std::list<std::pair<CardReference, int>>::iterat
     std::chrono::year_month_day dueDate = static_cast<std::chrono::sys_days>(mToday) + std::chrono::days(nextDueDays);
     mOtherCards.insert({dueDate, it->first, nextDueDays});
     mDueCards.erase(it);
+    mDirty = true;
   }
 }
 
